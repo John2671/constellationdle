@@ -82,6 +82,22 @@ button:disabled{cursor:default}
 
 .sky-card{position:relative;border-radius:20px;overflow:hidden;background:radial-gradient(ellipse at 50% 40%,#10294A 0%,#06121F 100%);box-shadow:0 0 0 1px var(--line),0 14px 30px rgba(0,0,0,.35);margin-bottom:14px}
 .sky-card svg{display:block;width:100%;height:auto}
+/* Entrada de la figura: aparecen las estrellas y luego se trazan las líneas */
+@media(prefers-reduced-motion:no-preference){
+  .draw .cl{stroke-dasharray:1;stroke-dashoffset:1;animation:trace 1.6s ease-in-out .45s forwards}
+  .draw .fs{opacity:0;animation:fadein .5s ease-out forwards}
+}
+@keyframes trace{to{stroke-dashoffset:0}}
+@keyframes fadein{to{opacity:1}}
+.sky-card.nolines .cl{display:none}
+.lines-toggle{position:absolute;top:10px;right:10px;padding:6px 12px;font-size:13px;border-radius:99px;background:rgba(6,18,31,.75);color:var(--text);box-shadow:0 0 0 1px var(--line)}
+.lines-toggle:active{box-shadow:0 0 0 1px var(--line)}
+.info-btn{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;padding:0;margin-left:4px;border-radius:50%;font-size:11px;line-height:1;vertical-align:1px;background:rgba(255,255,255,.14);color:var(--text);box-shadow:none}
+.info-btn:active{box-shadow:none}
+.info-btn[aria-expanded="true"]{background:var(--yellow);color:var(--ink)}
+.fact-info{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;line-height:1.45}
+.fact .fact-info b{display:inline;color:var(--text);font-size:inherit;margin:0}
+.cities{display:block;margin-top:3px;font-size:12px;color:var(--muted)}
 .burst{position:absolute;inset:0;pointer-events:none}
 .burst i{position:absolute;left:50%;top:50%;font-style:normal;font-size:22px;animation:burst 1s ease-out forwards}
 @keyframes burst{from{transform:translate(-50%,-50%) scale(.4);opacity:1}to{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1);opacity:0}}
@@ -559,12 +575,21 @@ function bestMonth(c){
   return MONTHS_LONG[dt.getUTCMonth()];
 }
 function latText(l){ return `${Math.round(Math.abs(l))}° ${l >= 0 ? "N" : "S"}`; }
+// "los 45° N" o "el ecuador" (con contracción: "de los 45° N" / "del ecuador")
+const latArt = l => Math.abs(l) < 0.5 ? "el ecuador" : `los ${latText(l)}`;
+const latDe = l => Math.abs(l) < 0.5 ? "del ecuador" : `de los ${latText(l)}`;
 function visibilityText(c){
   const north = 90 + c.dmin, south = c.dmax - 90;
   if(north >= 90 && south <= -90) return "desde cualquier lugar de la Tierra";
-  if(south <= -90) return `al sur de los ${latText(north)}`;
-  if(north >= 90) return `al norte de los ${latText(south)}`;
-  return `entre los ${latText(north)} y los ${latText(south)}`;
+  if(south <= -90) return `al sur ${latDe(north)}`;
+  if(north >= 90) return `al norte ${latDe(south)}`;
+  return `entre ${latArt(north)} y ${latArt(south)}`;
+}
+// Ciudades de referencia (latitud) para entender el rango de visibilidad
+const CITIES = [["Madrid", 40.4], ["México", 19.4], ["Bogotá", 4.7], ["Lima", -12.0], ["Santiago", -33.4]];
+function citiesText(c){
+  const north = 90 + c.dmin, south = c.dmax - 90;
+  return CITIES.map(([n, lat]) => `${n} ${lat <= north && lat >= south ? "✓" : "✗"}`).join(" · ");
 }
 
 /* ============ Pistas ============ */
@@ -670,7 +695,9 @@ function skySVG(id, o = {}){
   if(boundary){
     for(const ring of c.b) out.push(`<path d="${path(densify(ring), true)}" fill="rgba(245,184,61,.06)" stroke="#F5B83D" stroke-opacity=".5" stroke-dasharray="4 4" stroke-width="${f(1*k)}"/>`);
   }
-  out.push(`<path d="${c.l.map(l => path(l)).join("")}" fill="none" stroke="#F5B83D" stroke-opacity=".9" stroke-width="${f((thin ? 1.6 : 1.8)*k)}" stroke-linecap="round" stroke-linejoin="round"/>`);
+  // pathLength=1 permite animar el trazado de toda la figura con stroke-dashoffset
+  out.push(`<path class="cl" pathLength="1" d="${c.l.map(l => path(l)).join("")}" fill="none" stroke="#F5B83D" stroke-opacity=".9" stroke-width="${f((thin ? 1.6 : 1.8)*k)}" stroke-linecap="round" stroke-linejoin="round"/>`);
+  out.push(`<g class="fs">`);
   const seen = new Set();
   for(const l of c.l) for(const [ra, dec, mag] of l){
     const key = ra + "," + dec;
@@ -680,6 +707,7 @@ function skySVG(id, o = {}){
     if(mag < 3 && !thin) out.push(`<circle cx="${f(q[0])}" cy="${f(q[1])}" r="${f(r*3.2)}" fill="url(#${uid})"/>`);
     out.push(`<circle cx="${f(q[0])}" cy="${f(q[1])}" r="${f(r)}" fill="#fff"/>`);
   }
+  out.push(`</g>`);
   if(labels){
     for(const [name, ra, dec] of c.st){
       const q = at(ra, dec); if(!q) continue;
@@ -701,6 +729,9 @@ function fichaHTML(id, tries){
   else if(tries === 4) badge = `<span class="result-badge ko">✗ Esta vez no fue</span>`;
   const zodiac = c.zod ? `<div class="fact wide"><b>♈ Zodiaco</b>${c.astro ? `Signo astrológico: <b style="display:inline;color:var(--text)">${esc(c.astro)}</b> · ` : "No tiene signo astrológico · "}el Sol realmente la cruza del ${esc(sunDates(id) || "—")}. La diferencia se debe a la precesión: el eje de la Tierra se bambolea y en 2000 años el cielo se ha corrido casi un mes.</div>` : "";
   const ns = c.n.map(n => BYID[n].es);
+  const big = CONS.find(x => x.rank === 1), small = CONS.find(x => x.rank === 88);
+  // Dato con botón "?" que despliega su explicación
+  const fact = (title, body, info) => `<div class="fact"><b>${title} <button class="info-btn" aria-expanded="false" aria-label="¿Qué significa?">?</button></b>${body}<div class="fact-info" hidden>${info}</div></div>`;
   return `<div class="card">
     <div class="ficha-head">
       <div class="ficha-emoji">${c.emoji}</div>
@@ -710,13 +741,17 @@ function fichaHTML(id, tries){
         ${badge}
       </div>
     </div>
-    <div class="sky-card">${skySVG(id, { labels:true })}</div>
+    <div class="sky-card">${skySVG(id, { labels:true })}<button class="lines-toggle" aria-pressed="false">Ver sin líneas</button></div>
     <p class="mito">${esc(c.mito)}</p>
     <div class="facts">
-      <div class="fact"><b>🗓️ Mejor época</b>Noches de ${bestMonth(c)}</div>
-      <div class="fact"><b>🌍 Se ve completa</b>${visibilityText(c)}</div>
-      <div class="fact"><b>🧭 Dónde está</b>${coordsText(c)}</div>
-      <div class="fact"><b>📏 Tamaño</b>Puesto ${c.rank} de 88 · ${c.area} grados²</div>
+      ${fact("🗓️ Mejor época", `Noches de ${bestMonth(c)}`,
+        `Es el mes en que queda más alta en el cielo a eso de las 21 h. Sirve para ambos hemisferios: lo que cambia es la estación (enero es verano en el sur e invierno en el norte).`)}
+      ${fact("🌍 Desde dónde se ve", `Completa ${visibilityText(c)}<span class="cities">${citiesText(c)}</span>`,
+        `Son las latitudes de la Tierra desde donde la constelación entera llega a asomarse sobre el horizonte en algún momento del año. Fuera de ese rango, una parte nunca sale. Cerca del límite se ve muy baja.`)}
+      ${fact("🧭 Dónde está", coordsText(c),
+        `Son como la latitud y la longitud, pero del cielo. <b>Dec</b> (declinación) va de +90° en el polo norte celeste a −90° en el polo sur: esta pasa justo sobre tu cabeza si vives cerca ${latDe(c.c[1])}. <b>AR</b> (ascensión recta) va de 0 h a 24 h y marca en qué época del año se ve de noche.`)}
+      ${fact("📏 Tamaño", `Puesto ${c.rank} de 88 · ${c.area} grados²`,
+        `Se mide en grados cuadrados de cielo. Todo el cielo mide 41.253 grados² y la luna llena ocupa apenas 0,2. La más grande es ${esc(big.es)} (${big.area}) y la más pequeña, ${esc(small.es)} (${small.area}).`)}
       ${zodiac}
     </div>
     <h3>Sus vecinas</h3>
@@ -761,10 +796,16 @@ function renderScore(){
 function renderRound(){
   const s = curState(), r = curRound(), c = BYID[r.id];
   renderHeader(); renderScore();
-  $("skyCard").innerHTML = skySVG(r.id);
-  $("skyCard").setAttribute("aria-label", "Figura de la constelación misteriosa");
+  // La figura se redibuja (y se anima su trazado) solo al cambiar de constelación
+  const roundKey = `${kind}-${s.cur}-${r.id}`, sky = $("skyCard");
+  if(sky.dataset.round !== roundKey){
+    sky.innerHTML = skySVG(r.id);
+    sky.dataset.round = roundKey;
+    sky.classList.toggle("draw", !r.done && !r.wrong.length);
+  }
+  sky.setAttribute("aria-label", "Figura de la constelación misteriosa");
   // Pistas (solo se anima la que aparece recién)
-  const hintsEl = $("hints"), roundKey = `${kind}-${s.cur}-${r.id}`;
+  const hintsEl = $("hints");
   const prev = hintsEl.dataset.round === roundKey ? hintsEl.children.length : 99;
   const hints = [];
   if(r.wrong.length >= 1) hints.push(["Pista", r.hw]);
@@ -1057,6 +1098,20 @@ document.querySelectorAll(".tab").forEach(t => t.onclick = () => openStats(t.dat
 document.querySelectorAll("[data-close]").forEach(b => b.onclick = () => b.closest(".modal").classList.remove("show"));
 document.querySelectorAll(".modal").forEach(m => m.addEventListener("click", e => { if(e.target === m) m.classList.remove("show"); }));
 document.addEventListener("keydown", e => { if(e.key === "Escape") closeModals(); });
+// Ficha: "?" de cada dato y "Ver sin líneas" (sirven en la ficha del juego y en la del atlas)
+document.addEventListener("click", e => {
+  const info = e.target.closest(".info-btn");
+  if(info){
+    const box = info.closest(".fact").querySelector(".fact-info"), open = box.hidden;
+    box.hidden = !open; info.setAttribute("aria-expanded", open);
+    return;
+  }
+  const tg = e.target.closest(".lines-toggle");
+  if(tg){
+    const off = tg.closest(".sky-card").classList.toggle("nolines");
+    tg.setAttribute("aria-pressed", off); tg.textContent = off ? "Ver con líneas" : "Ver sin líneas";
+  }
+});
 $("shareBtn").onclick = async () => {
   const b = $("shareBtn"), txt = shareText();
   try{
