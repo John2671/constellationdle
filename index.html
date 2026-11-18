@@ -1063,12 +1063,19 @@ function starPath(cx, cy, R, r){
   }
   return d + "Z";
 }
+// La guirnalda se arma según el ancho real (en unidades de 84 de alto): estrellas siempre del mismo tamaño, sin recortes
+let garlandW = 0;
 function buildGarland(){
+  const el = $("garland"), H = el.clientHeight || 84;
+  const W = Math.round((el.clientWidth || innerWidth) * 84 / H);
+  if(W === garlandW) return;
+  garlandW = W;
+  el.setAttribute("viewBox", `0 0 ${W} 84`);
   const colors = ["#F5B83D","#FFFFFF","#D9EEF6","#F5B83D","#BFE2EE","#FFFFFF"];
-  let svg = `<path d="M-20 4 Q600 50 1220 4" fill="none" stroke="#A9C4D8" stroke-opacity=".7" stroke-width="1.4" stroke-linecap="round"/>`;
-  const n = 23;
+  let svg = `<path d="M-20 4 Q${W/2} 50 ${W+20} 4" fill="none" stroke="#A9C4D8" stroke-opacity=".7" stroke-width="1.4" stroke-linecap="round"/>`;
+  const n = Math.max(6, Math.round((W - 52) / 52) + 1);
   for(let i=0;i<n;i++){
-    const x = 26 + i*(1148/(n-1)), t = (x+20)/1240;
+    const x = 26 + i*((W-52)/(n-1)), t = (x+20)/(W+40);
     const y = (1-t)*(1-t)*4 + 2*(1-t)*t*50 + t*t*4;  // sobre la curva
     const len = 14 + ((i*7) % 5)*5, R = i % 3 === 1 ? 9 : 12;
     svg += `<g class="sw" style="animation-duration:${(3.6 + (i%5)*0.35).toFixed(2)}s;animation-delay:${((i*0.43) % 4.5).toFixed(2)}s">`
@@ -1122,6 +1129,7 @@ $("shareBtn").onclick = async () => {
 };
 
 buildGarland();
+let garlandTimer; addEventListener("resize", () => { clearTimeout(garlandTimer); garlandTimer = setTimeout(buildGarland, 150); });
 buildTwinkles();
 state = loadDaily();
 render();
