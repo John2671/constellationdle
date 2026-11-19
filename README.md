@@ -13,7 +13,7 @@ Juego diario para reconocer constelaciones, en la línea de Wordle. Cada día ha
 - **4 constelaciones al día:** primero 2 del **zodiaco** (para calentar) y luego 2 de **todo el cielo**.
 - Ves la figura (estrellas unidas por líneas) y eliges entre **6 alternativas**. Tienes **3 vidas** ⭐⭐⭐ por constelación.
 - **1.er fallo → pista.** **2.º fallo → última pista.** Al 3.º se revela la respuesta.
-- Después de cada una se abre su **ficha**: mito, estrellas principales con nombre, mejor época para verla, desde dónde se ve, sus vecinas en un mini mapa y un dato curioso. En las del zodiaco, compara además las fechas del signo astrológico con las fechas en que el Sol de verdad la cruza.
+- Después de cada una se abre su **ficha**: las líneas de la figura se trazan solas (y puedes verla **sin líneas**, como en el cielo real), mito, estrellas principales con nombre, mejor época para verla, desde dónde se ve completa (con ciudades de referencia), dónde está en el cielo, tamaño, sus vecinas en un mini mapa y un dato curioso. Los botones **?** explican cada dato. En las del zodiaco, compara además las fechas del signo astrológico con las fechas en que el Sol de verdad la cruza.
 - Las que aciertas quedan en **tu atlas**. ¿Podrás completar las 88?
 
 ### Pistas
